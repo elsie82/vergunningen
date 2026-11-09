@@ -1,0 +1,30 @@
+name: Update data
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      # exits 1 when a commune source needs attention; the data that did work is still committed below
+      - id: fetch
+        run: python fetch_data.py
+        continue-on-error: true
+      - if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "Update data" && git push)
+      # a failed run makes GitHub e-mail you; the log of the fetch step says which commune and why
+      - if: steps.fetch.outcome == 'failure'
+        run: |
+          echo "::error::Een bron voor openbaar onderzoek vraagt aandacht: zie de log van de fetch-stap en pas sources.json aan."
+          exit 1
