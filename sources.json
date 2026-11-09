@@ -1,0 +1,9 @@
+{
+ "Hoeilaart": {"type": "remmicom", "url": "https://hoeilaart.consultatieomgeving.net"},
+ "Huldenberg": {"type": "remmicom", "url": "https://huldenberg.consultatieomgeving.net"},
+ "Tervuren": {"type": "lcp", "url": "https://www.tervuren.be/openbare-onderzoeken"},
+ "Overijse": {"type": "lcp", "url": [
+   "https://www.overijse.be/vergunningen-en-openbare-onderzoeken?sort=DatumBekendmakingAflopend&sortcat=11",
+   "https://www.overijse.be/vergunningen-en-openbare-onderzoeken?sort=DatumBekendmakingAflopend&sortcat=12"]},
+ "Bertem": {"type": "none", "url": ""}
+}

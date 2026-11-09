@@ -1,0 +1,6 @@
+requests
+shapely
+pandas
+openpyxl
+beautifulsoup4
+pypdf

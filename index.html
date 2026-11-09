@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omgevingsvergunningen – recente beslissingen</title>
+<style>
+:root{--bg:#fbfbf9;--fg:#1d2527;--mut:#5d6b6e;--line:#d9dedd;--acc:#14564b;--chip:#e6efec;--warn:#b5651d;--nat:#2f7a1f;--natbg:#e3f1dc}
+@media (prefers-color-scheme:dark){:root{--bg:#161b1c;--fg:#e8eceb;--mut:#9aa8aa;--line:#2f3a3c;--acc:#6cc3b2;--chip:#22302e;--warn:#e0a060;--nat:#8fd17a;--natbg:#22361c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+main{max-width:46rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+h1{font-size:1.4rem;margin:0 0 .25rem}
+.mut{color:var(--mut);font-size:.9rem}
+fieldset{border:0;padding:0;margin:1.25rem 0 0}
+legend{font-weight:600;margin-bottom:.4rem}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem}
+.chips label{border:1px solid var(--line);border-radius:999px;padding:.3rem .8rem;cursor:pointer}
+.chips label:has(input:checked){background:var(--chip);border-color:var(--acc);font-weight:600}
+.chips input{position:absolute;opacity:0}
+.chips label:has(input:focus-visible),select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+select,input[type=search]{font:inherit;padding:.3rem .5rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+ul{list-style:none;padding:0;margin:1.25rem 0 0;border-top:1px solid var(--line)}
+li{display:flex;gap:1rem;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--line)}
+li a{color:var(--acc);font-weight:600;font-variant-numeric:tabular-nums}
+#tip{position:fixed;z-index:10;max-width:22rem;background:var(--fg);color:var(--bg);padding:.6rem .8rem;border-radius:6px;font-size:.85rem;pointer-events:none;display:none}
+#tip b{display:block;margin-bottom:.2rem}
+footer{margin-top:2rem}
+li.nat{border-left:4px solid var(--nat);background:var(--natbg);padding-left:.6rem;padding-right:.4rem}
+.tag{display:inline-block;color:var(--nat);border:1px solid var(--nat);border-radius:999px;padding:0 .45rem;font-size:.78rem;font-weight:600;margin-right:.3rem}
+#tip mark{background:var(--natbg);color:var(--nat);font-weight:600;padding:0 .15rem;border-radius:3px}
+.search{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+#oowarn{border:1px solid var(--warn);border-left-width:4px;border-radius:6px;padding:.5rem .8rem;margin-top:.75rem;font-size:.9rem}
+#oowarn ul{margin:.25rem 0 0;border:0}#oowarn li{display:list-item;border:0;padding:0;margin-left:1.1rem;list-style:disc}
+</style>
+</head>
+<body>
+<main>
+<h1>Omgevingsvergunningen: recente beslissingen</h1>
+<p class="mut" id="meta">Laden…</p>
+<div id="oowarn" role="status" hidden></div>
+<fieldset><legend>Gemeenten</legend><div class="chips" id="communes"></div></fieldset>
+<fieldset><legend>Fase</legend>
+<div class="chips">
+<label><input type="radio" name="fase" value="oo">Lopend openbaar onderzoek</label>
+<label><input type="radio" name="fase" value="beslissing" checked>Beslissing</label>
+<label><input type="radio" name="fase" value="all">Alle</label></div>
+<p class="mut" id="oonote" hidden></p></fieldset>
+<fieldset id="decision"><legend>Beslissing</legend>
+<select id="mode" aria-label="Soort beslissing">
+<option value="Vergunning" selected>Alleen vergunningen</option>
+<option value="all">Alle beslissingen (vergunning, weigering, …)</option></select>
+<select id="range" aria-label="Periode">
+<option value="14">Laatste 14 dagen</option><option value="30">Laatste 30 dagen</option>
+<option value="45" selected>Laatste 45 dagen</option><option value="60">Laatste 60 dagen</option>
+<option value="0">Alles (vanaf 2025)</option></select></fieldset>
+<fieldset class="search"><input id="q" type="search" placeholder="Zoek in omschrijving (bv. bos, kap, verharding)" aria-label="Zoeken">
+<div class="chips"><label><input type="checkbox" id="nat">Alleen natuur (bomen, bos, reliëf)</label></div></fieldset>
+<p class="mut" id="count"></p>
+<ul id="list"></ul>
+<footer class="mut">Download: <a href="data.json">JSON</a> · <a href="data.xlsx">Excel</a><br>
+Bron: Departement Omgeving, Omgevingsloket – Stedenbouwkundige projecten V2 (Modellicentie gratis hergebruik). Het beroepstermijn loopt vanaf de aanplakking en niet vanaf de beslissingsdatum: controleer de termijn altijd in het dossier. Foutieve of onvolledige brongegevens zijn mogelijk; klik op een nummer voor het officiële dossier.</footer>
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+const $=id=>document.getElementById(id), tip=$("tip");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let data=[];
+// nature-related handelingen: [pattern, tag]; matched on the standard descriptions and the inquiry title
+const NATURE=[[/ontbos\w*/gi,"ontbossen"],[/(?:hoogstammige )?bomen (?:vellen|kappen)|(?:vellen|kappen) van bomen/gi,"bomen vellen"],
+  [/(?:bodem)?reli[eë]f(?: van de bodem)?/gi,"reliëf"],[/vegetatie\w*|houtkant\w*|grasland\w*|hagen|\bhaag\b/gi,"vegetatie"]];
+const natText=r=>[r.handeling_omschrijving,r.omschrijving_projecttype,r.oo_titel].join(" ");
+const natTags=r=>NATURE.filter(([re])=>{re.lastIndex=0;return re.test(natText(r));}).map(([,t])=>t);
+const hl=s=>NATURE.reduce((h,[re])=>h.replace(re,m=>`<mark>${m}</mark>`),esc(s));  // escaped text, so safe to wrap
+fetch("data.json").then(r=>r.json()).then(d=>{
+  data=d.records;
+  $("meta").textContent="Bijgewerkt: "+new Date(d.generated).toLocaleString("nl-BE");
+  // health of the commune websites used for the openbaar onderzoek filter (see sources.json)
+  const st=d.oo_status||[], bad=st.filter(s=>s.errors.length);
+  if(bad.length){$("oowarn").hidden=false;$("oowarn").innerHTML="<b>Openbaar onderzoek mogelijk onvolledig</b><ul>"
+    +bad.map(s=>`<li>${esc(s.commune)}: ${s.errors.map(esc).join("; ")}${s.last_found?` (laatst onderzoeken gevonden: ${esc(s.last_found)})`:""}</li>`).join("")+"</ul>";}
+  $("oonote").textContent="Bron per gemeente: "+st.map(s=>`${s.commune} – ${s.type==="none"?"geen bron":s.errors.length?"probleem":s.count+" gevonden"}`).join(" · ");
+  [...new Set(data.map(r=>r.commune))].sort().forEach(c=>{
+    const l=document.createElement("label");
+    l.innerHTML=`<input type="checkbox" value="${esc(c)}">${esc(c)}`;
+    $("communes").append(l);
+  });
+  render();
+}).catch(()=>$("meta").textContent="data.json kon niet geladen worden.");
+document.addEventListener("change",render);$("q").addEventListener("input",render);
+function render(){
+  const sel=[...document.querySelectorAll("#communes input:checked")].map(i=>i.value);
+  const days=+$("range").value, cutoff=days?new Date(Date.now()-days*864e5).toISOString().slice(0,10):"";
+  const mode=$("mode").value, q=$("q").value.trim().toLowerCase();
+  const fase=document.querySelector("input[name=fase]:checked").value, oo=fase==="oo";
+  // the inquiry period is compared with today in the browser, so the filter stays right between daily updates
+  const today=new Date().toLocaleDateString("sv"), running=r=>r.oo_van&&r.oo_van<=today&&(!r.oo_tot||today<=r.oo_tot);
+  $("decision").disabled=fase!=="beslissing";$("oonote").hidden=!oo;
+  const txt=r=>[r.handeling_omschrijving,r.omschrijving_projecttype,r.oo_titel,r.laag].join(" ").toLowerCase();
+  const nat=$("nat").checked;
+  const rows=data.filter(r=>sel.includes(r.commune)&&(!q||txt(r).includes(q))&&(!nat||natTags(r).length)&&(oo?running(r):fase==="all"
+    ||r.beslissingsdatum&&r.beslissingsdatum>=cutoff&&(mode==="all"||r.huidige_toestand===mode)));
+  if(oo)rows.sort((a,b)=>(a.oo_tot||"").localeCompare(b.oo_tot||""));  // soonest deadline first
+  $("count").textContent=sel.length?`${rows.length} dossiers`:"Kies minstens één gemeente.";
+  $("list").innerHTML=rows.map((r,i)=>{const tags=natTags(r);return `<li${tags.length?' class="nat"':""}><a href="${esc(r.inzage_url)}" data-i="${i}">${esc(r.projectnummer)}</a><span class="mut">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}${esc(r.commune)} · ${r.laag==="verkaveling"?"verkaveling · ":""}${running(r)
+    ?`openbaar onderzoek t/m ${esc(r.oo_tot)} · <a href="${esc(r.oo_url)}" target="_blank" rel="noopener">bekendmaking</a>`
+    :esc(r.huidige_toestand)+(r.beslissingsdatum?` · ${esc(r.beslissingsdatum)}`:"")}</span></li>`}).join("");
+  $("list").querySelectorAll("a[data-i]").forEach(a=>{
+    const r=rows[a.dataset.i];
+    a.onmouseenter=a.onfocus=e=>{
+      tip.innerHTML=`<b>${esc(r.huidige_toestand||"")}</b>${hl(r.handeling_omschrijving||r.omschrijving_projecttype||"")}<br>Soort: ${esc(r.laag||"-")}<br>Fase: ${esc(r.fase_huidige_toestand||"-")}<br>Beslissing: ${esc(r.beslissingsdatum||"-")}${r.oo_van?`<br>Openbaar onderzoek: ${esc(r.oo_van)} – ${esc(r.oo_tot||"?")}`:""}<br>Ingediend: ${esc(r.datum_indiening||"-")}`;
+      const b=a.getBoundingClientRect();
+      tip.style.display="block";tip.style.left=Math.min(b.left,innerWidth-tip.offsetWidth-8)+"px";tip.style.top=b.bottom+6+"px";
+    };
+    a.onmouseleave=a.onblur=()=>tip.style.display="none";
+    a.onclick=e=>{e.preventDefault();
+      // same window name = every click reuses the one popup; no noopener (it makes window.open return null)
+      const w=window.open(a.href,"omv_popup","popup=yes,width=1000,height=800,left=100,top=60");
+      if(!w)alert("Popup geblokkeerd: sta popups toe voor deze pagina.");};
+  });
+}
+</script>
+</body>
+</html>
