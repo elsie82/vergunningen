@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-21T13:18:26+00:00",
+ "generated": "2026-11-21T18:57:18+00:00",
  "last_full": "2026-11-17",
  "layers": [
   "stedenbouwkundig",
@@ -45,13 +45,11 @@
     "https://www.overijse.be/vergunningen-en-openbare-onderzoeken?sort=DatumBekendmakingAflopend&sortcat=11",
     "https://www.overijse.be/vergunningen-en-openbare-onderzoeken?sort=DatumBekendmakingAflopend&sortcat=12"
    ],
-   "count": 0,
-   "errors": [
-    "bron werkt niet: Reached maximum number of tokens per stream."
-   ],
+   "count": 3,
+   "errors": [],
    "warnings": [],
-   "last_ok": "2026-11-08",
-   "last_found": "2026-11-08"
+   "last_ok": "2026-11-21",
+   "last_found": "2026-11-21"
   },
   {
    "commune": "Bertem",
@@ -42911,7 +42909,11 @@
    "beslissingsdatum": null,
    "lon": 4.505241,
    "lat": 50.739312,
-   "inzage_url": "https://omgevingsloketinzage.omgeving.vlaanderen.be/2026077668/inhoud-aanvraag"
+   "inzage_url": "https://omgevingsloketinzage.omgeving.vlaanderen.be/2026077668/inhoud-aanvraag",
+   "oo_titel": "Openbaar onderzoek - Terlindenlaan 5",
+   "oo_van": "2026-11-08",
+   "oo_tot": "2026-12-07",
+   "oo_url": "https://www.overijse.be/openbaar-onderzoek-terlindenlaan"
   },
   {
    "id": 1013506,
@@ -42953,7 +42955,11 @@
    "beslissingsdatum": null,
    "lon": 4.517791,
    "lat": 50.789269,
-   "inzage_url": "https://omgevingsloketinzage.omgeving.vlaanderen.be/2026078242/inhoud-aanvraag"
+   "inzage_url": "https://omgevingsloketinzage.omgeving.vlaanderen.be/2026078242/inhoud-aanvraag",
+   "oo_titel": "Openbaar onderzoek - Kastanjedreef 73",
+   "oo_van": "2026-11-14",
+   "oo_tot": "2026-12-13",
+   "oo_url": "https://www.overijse.be/openbaar-onderzoek-kastanjedreef-73"
   },
   {
    "id": 1013634,
@@ -43608,7 +43614,11 @@
    "beslissingsdatum": null,
    "lon": 4.494358,
    "lat": 50.790739,
-   "inzage_url": "https://omgevingsloketinzage.omgeving.vlaanderen.be/2026094450/inhoud-aanvraag"
+   "inzage_url": "https://omgevingsloketinzage.omgeving.vlaanderen.be/2026094450/inhoud-aanvraag",
+   "oo_titel": "Openbaar onderzoek - Reebokweg 14",
+   "oo_van": "2026-11-06",
+   "oo_tot": "2026-12-05",
+   "oo_url": "https://www.overijse.be/openbaar-onderzoek-reebokweg-14"
   },
   {
    "id": 1024277,
