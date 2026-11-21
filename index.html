@@ -76,9 +76,10 @@ fetch("data.json").then(r=>r.json()).then(d=>{
   data=d.records;
   $("meta").textContent="Bijgewerkt: "+new Date(d.generated).toLocaleString("nl-BE");
   // health of the commune websites used for the openbaar onderzoek filter (see sources.json)
-  const st=d.oo_status||[], bad=st.filter(s=>s.errors.length);
-  if(bad.length){$("oowarn").hidden=false;$("oowarn").innerHTML="<b>Openbaar onderzoek mogelijk onvolledig</b><ul>"
-    +bad.map(s=>`<li>${esc(s.commune)}: ${s.errors.map(esc).join("; ")}${s.last_found?` (laatst onderzoeken gevonden: ${esc(s.last_found)})`:""}</li>`).join("")+"</ul>";}
+  const st=d.oo_status||[], bad=st.filter(s=>s.errors.length), notes=st.filter(s=>s.type!=="none"&&s.warnings.length);
+  if(bad.length||notes.length){$("oowarn").hidden=false;$("oowarn").innerHTML="<b>Openbaar onderzoek mogelijk onvolledig</b><ul>"
+    +bad.map(s=>`<li>${esc(s.commune)}: ${s.errors.map(esc).join("; ")}${s.last_found?` (laatst onderzoeken gevonden: ${esc(s.last_found)})`:""}</li>`).join("")
+    +notes.map(s=>`<li>${esc(s.commune)} (let op): ${s.warnings.map(esc).join("; ")}</li>`).join("")+"</ul>";}
   $("oonote").textContent="Bron per gemeente: "+st.map(s=>`${s.commune} – ${s.type==="none"?"geen bron":s.errors.length?"probleem":s.count+" gevonden"}`).join(" · ");
   [...new Set(data.map(r=>r.commune))].sort().forEach(c=>{
     const l=document.createElement("label");

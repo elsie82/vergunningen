@@ -20,6 +20,9 @@ SOURCES = HERE / "sources.json"
 CACHE = HERE / "oo_cache.json"
 STATE = HERE / "oo_state.json"  # last_ok / last_found per commune, kept between runs
 STALE_DAYS = 30                 # no inquiries found for this long -> probably a broken source
+MAX_PDF_PAGES = 3               # the OMV number and period are on the first page of the affiche
+MAX_PDF_BYTES = 10_000_000      # larger attachments are plans, not affiches
+MAX_FILES = 3                   # attachments read per notice, the affiche first
 UA = {"User-Agent": "omv-viewer/1.0 (personal project)"}
 OMV = re.compile(r"OMV[_ ]?(\d{10})")
 NOTICE = re.compile(r"(bekendmaking )?openbaar onderzoek", re.I)
@@ -106,7 +109,38 @@ def discover(url, max_pages=10):
                   if CANDIDATE.search(h) and urlparse(h).netloc == host and h not in seen]
     return None
 
-def lcp(commune, urls, cache, errors):
+def pdf_text(content):
+    """Text of the first pages only: the affiche is short, attached plans can be huge."""
+    return " ".join(" ".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(content)).pages[:MAX_PDF_PAGES]).split())
+
+def notice(link):
+    """{"nr", "oo_van", "oo_tot"} from a notice page and its attachments, the affiche first.
+    Stops as soon as number and period are found and reads at most MAX_FILES attachments (plan inquiries,
+    e.g. an onteigeningsplan, can have dozens of heavy drawings); raises only if nothing could be read."""
+    det = BeautifulSoup(get(link, polite=True).text, "html.parser")
+    body, read, failed = " ".join(det.get_text(" ").split()), 0, []
+    # the link text is just "Downloaden"; the file name is in the surrounding list item
+    label = lambda a: " ".join((a.find_parent(["li", "tr"]) or a.parent).get_text(" ").split())
+    files = sorted(det.select("a[href*='/file/download/']"),
+                   key=lambda a: not re.search(r"affiche|bekendmaking|openbaar", label(a), re.I))
+    for a in files[:MAX_FILES]:
+        if OMV.search(body) and parse_period(body)[0]:
+            break
+        r = get(urljoin(link, a["href"]), polite=True, timeout=120)
+        if r.content[:4] != b"%PDF" or len(r.content) > MAX_PDF_BYTES:
+            continue
+        try:
+            body += " " + pdf_text(r.content)
+            read += 1
+        except Exception as e:  # e.g. pypdf safety limits on very complex drawings
+            failed.append(f"{label(a)[:50]}: {e}")
+    m = OMV.search(body)
+    if not m and failed and not read:
+        raise RuntimeError("PDF niet leesbaar (" + "; ".join(failed) + ")")
+    van, tot = parse_period(body)
+    return {"nr": m[1] if m else None, "oo_van": van, "oo_tot": tot}
+
+def lcp(commune, urls, cache, errors, warnings):
     """Inquiries from one or more list pages; a page that no longer works is looked up again via discover()."""
     links = {}
     for url in urls:
@@ -122,15 +156,11 @@ def lcp(commune, urls, cache, errors):
     out = {}
     for link, title in links.items():
         if link not in cache:
-            det = BeautifulSoup(get(link, polite=True).text, "html.parser")
-            body = " ".join(det.get_text(" ").split())
-            for a in det.select("a[href*='/file/download/']"):
-                r = get(urljoin(link, a["href"]), polite=True, timeout=120)
-                if r.content[:4] == b"%PDF":
-                    body += " " + " ".join(" ".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(r.content)).pages).split())
-            m = OMV.search(body)
-            van, tot = parse_period(body)
-            cache[link] = {"nr": m[1] if m else None, "oo_van": van, "oo_tot": tot}
+            try:
+                cache[link] = notice(link)
+            except Exception as e:  # one unreadable notice must not hide the others; not cached, so retried next run
+                warnings.append(f"bekendmaking '{title}' niet gelezen: {e}")
+                continue
         c = cache[link]
         if not c["nr"]:  # e.g. inquiries on plans (MAP7, RUP) that are not permit files
             continue
@@ -157,7 +187,7 @@ def fetch_all():
             if src["type"] == "remmicom":
                 found = remmicom(commune, urls[0], st["warnings"])
             else:
-                found = lcp(commune, urls, cache, st["errors"])
+                found = lcp(commune, urls, cache, st["errors"], st["warnings"])
             out.update(found)
             st["count"] = len(found)
             if not st["errors"]:
